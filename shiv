@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Space Dodge</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    <style>
+        body {
+            margin: 0;
+            background: #111;
+            color: #fff;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            touch-action: manipulation;
+        }
+        canvas {
+            border: 2px solid #fff;
+            background: #000;
+            max-width: 90vw;
+            max-height: 70vh;
+        }
+        .touch-controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 20px;
+        }
+        .btn {
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #333;
+            color: #fff;
+            border: 1px solid #777;
+            border-radius: 8px;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Space Dodge PWA</h2>
+    <canvas id="game" width="360" height="480"></canvas>
+    
+    <div class="touch-controls">
+        <button class="btn" id="leftBtn">◀ LEFT</button>
+        <button class="btn" id="rightBtn">RIGHT ▶</button>
+    </div>
+
+    <script>
+        // Register Service Worker for Offline Capabilities
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log("Service Worker Registered for Offline Play"));
+        }
+
+        // Game Engine Logic
+        const canvas = document.getElementById("game");
+        const ctx = canvas.getContext("2d");
+        const player = { x: 160, y: 420, size: 25, speed: 6, dx: 0 };
+        let obstacles = [];
+        let score = 0;
+        let gameOver = false;
+
+        function moveLeft() { player.dx = -player.speed; }
+        function moveRight() { player.dx = player.speed; }
+        function stopMove() { player.dx = 0; }
+
+        // Keyboard Controls
+        document.addEventListener("keydown", e => {
+            if (e.key === "ArrowLeft") moveLeft();
+            if (e.key === "ArrowRight") moveRight();
+        });
+        document.addEventListener("keyup", stopMove);
+
+        // Touch Screen Controls
+        const lBtn = document.getElementById("leftBtn");
+        const rBtn = document.getElementById("rightBtn");
+        lBtn.addEventListener("touchstart", e => { e.preventDefault(); moveLeft(); });
+        lBtn.addEventListener("touchend", stopMove);
+        rBtn.addEventListener("touchstart", e => { e.preventDefault(); moveRight(); });
+        rBtn.addEventListener("touchend", stopMove);
+
+        function update() {
+            if (gameOver) return;
+            player.x += player.dx;
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.size > canvas.width) player.x = canvas.width - player.size;
+
+            if (Math.random() < 0.04) {
+                obstacles.push({ x: Math.random() * (canvas.width - 20), y: -20, size: 20, speed: 3 + Math.random() * 2 });
+            }
+
+            for (let i = 0; i < obstacles.length; i++) {
+                let obs = obstacles[i];
+                obs.y += obs.speed;
+                if (player.x < obs.x + obs.size && player.x + player.size > obs.x &&
+                    player.y < obs.y + obs.size && player.y + player.size > obs.y) {
+                    gameOver = true;
+                }
+                if (obs.y > canvas.height) {
+                    obstacles.splice(i, 1);
+                    i--;
+                    score++;
+                }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#00ffcc";
+            ctx.fillRect(player.x, player.y, player.size, player.size);
+
+            ctx.fillStyle = "#ff3366";
+            for (let obs of obstacles) {
+                ctx.fillRect(obs.x, obs.y, obs.size, obs.size);
+            }
+
+            ctx.fillStyle = "#fff";
+            ctx.font = "16px sans-serif";
+            ctx.fillText("Score: " + score, 10, 25);
+
+            if (gameOver) {
+                ctx.fillStyle = "#ff3366";
+                ctx.font = "24px sans-serif";
+                ctx.fillText("GAME OVER", 110, 240);
+            }
+        }
+
+        function loop() {
+            update();
+            draw();
+            if (!gameOver) requestAnimationFrame(loop);
+        }
+        loop();
+    </script>
+</body>
+</html>
